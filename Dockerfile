@@ -15,24 +15,29 @@ RUN \
   apt-get install -y build-essential && \
   apt-get install -y software-properties-common && \
   apt-get install -y byobu curl git htop man unzip vim wget && \
+  apt-get install -y python3-pip python3-dev && \
+  ln -s /usr/bin/python3 /usr/local/bin/python && \
+  pip3 install --upgrade pip && \
   rm -rf /var/lib/apt/lists/*
 
 # Add files.
 ADD root/.bashrc /root/.bashrc
 ADD root/.gitconfig /root/.gitconfig
 ADD root/.scripts /root/.scripts
-ADD houdini-17.5.258-linux_x86_64_gcc6.3.tar.gz /root/
+ADD downloadHoudini.py /root/downloadHoudini.py
+ADD startHoudiniLicenseServer.sh /root/startHoudiniLicenseServer.sh
 
 RUN \
-  /root/houdini-17.5.258-linux_x86_64_gcc6.3/houdini.install --auto-install --accept-EULA --install-license --no-install-houdini --no-install-engine-maya --no-install-engine-unity --no-install-menus --no-install-hfs-symlink && \
-  rm -rf /root/houdini-17.5.258-linux_x86_64_gcc6.3/
+  chmod +x /root/downloadHoudini.py && \
+  chmod +x /root/startHoudiniLicenseServer.sh && \
+  mkdir /root/houdini_download && \
+  HOUDINIFILE=$(python /root/downloadHoudini.py) && echo "Extracting $HOUDINIFILE" && \
+  tar xf /root/houdini_download/$HOUDINIFILE -C /root/houdini_download --strip-components=1 && \
+  /root/houdini_download/houdini.install --auto-install --accept-EULA --install-license --no-install-houdini --no-install-engine-maya --no-install-engine-unity --no-install-menus --no-install-hfs-symlink && \
+  rm -rf /root/houdini_download
 
 # Set environment variables.
 ENV HOME /root
-
-ADD startHoudiniLicenseServer.sh /root/startHoudiniLicenseServer.sh
-
-RUN chmod +x /root/startHoudiniLicenseServer.sh
 
 # Define working directory.
 WORKDIR /root
