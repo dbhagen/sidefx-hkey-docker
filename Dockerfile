@@ -4,37 +4,42 @@
 # https://github.com/dockerfile/ubuntu
 #
 
-# Pull base image.
-FROM ubuntu:14.04
-
-# Install.
-RUN sed -i 's/# \(.*multiverse$\)/\1/g' /etc/apt/sources.list \
-  && apt-get update \
-  && apt-get -y upgrade \
-  && apt-get install -y build-essential software-properties-common byobu curl git htop man unzip vim wget python3-pip python3-dev \
-  && apt-get autoremove \
-  && ln -s /usr/bin/python3 /usr/local/bin/python \
-  && pip3 install --upgrade pip \
-  && rm -rf /var/lib/apt/lists/*
-
-# Add files.
-ADD root/.bashrc /root/.bashrc
-ADD root/.gitconfig /root/.gitconfig
-ADD root/.scripts /root/.scripts
-ADD downloadHoudini.py /root/downloadHoudini.py
-ADD startHoudiniLicenseServer.sh /root/startHoudiniLicenseServer.sh
-
-RUN chmod +x /root/downloadHoudini.py \
-  && chmod +x /root/startHoudiniLicenseServer.sh \
+FROM alpine:latest AS downloader
+COPY downloadHoudini.py /root/
+RUN apk add --no-cache curl python3 \
+  && if [ ! -e /usr/bin/python ]; then ln -sf python3 /usr/bin/python ; fi \
+  && echo "**** install pip ****" \
+  && python3 -m ensurepip \
+  && rm -r /usr/lib/python*/ensurepip \
+  && pip3 install --no-cache --upgrade pip setuptools wheel \
+  && if [ ! -e /usr/bin/pip ]; then ln -s pip3 /usr/bin/pip ; fi \
+  && pip install requests \
+  && chmod +x /root/downloadHoudini.py \
   && mkdir /root/houdini_download \
   && cd /root/houdini_download \
-  && echo "Downloading Houdini via API" \
-  && HOUDINIFILE=$(python /root/downloadHoudini.py) \
-  && echo "Extracting $HOUDINIFILE" \
-  && tar xf /root/houdini_download/$HOUDINIFILE -C /root/houdini_download --strip-components=1 \
-  && /root/houdini_download/houdini.install --auto-install --accept-EULA --install-license --no-install-houdini --no-install-engine-maya --no-install-engine-unity --no-install-menus --no-install-hfs-symlink \
-  && cd /root \
-  && rm -rf /root/houdini_download
+  && HOUDINIDOWNLOADURL=$(python /root/downloadHoudini.py) \
+  && curl $HOUDINIDOWNLOADURL -o /root/houdini_download/houdini.tar.gz
+
+FROM ubuntu:18.04 AS iterim
+COPY --from=downloader /root/houdini_download/houdini.tar.gz /root/houdini.tar.gz
+RUN mkdir /root/houdini_download \
+  && tar xf /root/houdini.tar.gz -C /root/houdini_download --strip-components=1 \
+  && apt-get update \
+  && apt-get install -y bc strace \
+  && /root/houdini_download/houdini.install --auto-install --accept-EULA --install-license --no-install-houdini --no-install-engine-maya --no-install-engine-unity --no-install-menus --no-install-hfs-symlink
+  
+# Pull base image.
+FROM ubuntu:18.04
+
+# Add files.
+COPY --from=iterim /usr/lib/sesi/ /usr/lib/sesi
+COPY startHoudiniLicenseServer.sh /root/
+
+# Install.
+# build-essential software-properties-common git python3-pip python3-dev 
+RUN chmod +x /root/startHoudiniLicenseServer.sh \
+  && rm /usr/lib/sesi/licenses.disabled \
+  && touch /usr/lib/sesi/licenses
 
 # Set environment variables.
 ENV HOME /root
@@ -43,7 +48,6 @@ ENV HOME /root
 WORKDIR /root
 
 EXPOSE 1715
-VOLUME ["/usr/lib/sesi-docker"]
 
 # Define default command.
 ENTRYPOINT ["/root/startHoudiniLicenseServer.sh"]
