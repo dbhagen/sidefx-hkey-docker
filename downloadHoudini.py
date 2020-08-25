@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import base64
@@ -5,11 +6,13 @@ try:
     import html.parser as HTMLParser
 except ImportError:
     import HTMLParser
+import html
 import requests
 import hashlib
 import shutil
 
 # Code that provides convenient Python wrappers to call into the API:
+
 
 def service(
         access_token_url, client_id, client_secret_key, endpoint_url,
@@ -52,7 +55,7 @@ class _APIFunction(object):
             self.service.endpoint_url, self.service.access_token,
             self.function_name, args, kwargs)
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Code that implements authentication and raw calls into the API:
 
 
@@ -88,6 +91,7 @@ class AuthorizationError(Exception):
     """Raised from the client if the server generated an error while generating
     an access token.
     """
+
     def __init__(self, http_code, message):
         super(AuthorizationError, self).__init__(message)
         self.http_code = http_code
@@ -118,6 +122,7 @@ class APIError(Exception):
     """Raised from the client if the server generated an error while calling
     into the API.
     """
+
     def __init__(self, http_code, message):
         super(APIError, self).__init__(message)
         self.http_code = http_code
@@ -141,7 +146,7 @@ def _extract_traceback_from_response(response):
     if len(traceback) == 0:
         traceback = error_message
 
-    return HTMLParser.HTMLParser().unescape(traceback)
+    return html.unescape(traceback)
 
 
 if __name__ == '__main__':
@@ -150,36 +155,17 @@ if __name__ == '__main__':
     # This service object retrieve a token using your Application ID and secret
     service = service(
         access_token_url="https://www.sidefx.com/oauth2/application_token",
-        client_id='***REMOVED***',
-        client_secret_key='***REMOVED***',
+        client_id=os.environ.get('SIDEFX_API_CLIENT_ID'),
+        client_secret_key=os.environ.get('SIDEFX_API_CLIENT_SECRET_KEY'),
         endpoint_url="https://www.sidefx.com/api/",
     )
 
     # Retrieve the daily builds list, if you want the latest production
     # you can skip this step
     releases_list = service.download.get_daily_builds_list(
-        product='houdini', version='17.5', platform='linux')
+        product='houdini', version=os.environ.get('HOUDINI_VERSION'), platform='linux')
 
     # Retrieve the latest daily build available
     latest_release = service.download.get_daily_build_download(
-        product='houdini', version='17.5', build=releases_list[0]['build'], platform='linux')
+        product='houdini', version=os.environ.get('HOUDINI_VERSION'), build=releases_list[0]['build'], platform='linux')
     print(latest_release['download_url'])
-
-    # Download the file
-    # local_filename = '/root/houdini_download/' + latest_release['filename']
-    # r = requests.get(latest_release['download_url'], stream=True)
-    # if r.status_code == 200:
-    #     with open(local_filename, 'wb') as f:
-    #         r.raw.decode_content = True
-    #         shutil.copyfileobj(r.raw, f)
-    # else:
-    #     raise Exception('Error downloading file!')
-
-    # # Verify the file checksum is matching
-    # file_hash = hashlib.md5()
-    # with open(local_filename, 'rb') as f:
-    #     for chunk in iter(lambda: f.read(4096), b''):
-    #         file_hash.update(chunk)
-    # if file_hash.hexdigest() != latest_release['hash']:
-    #     raise Exception('Checksum does not match!')
-    # print(latest_release['filename'])
