@@ -32,6 +32,7 @@ RUN apk add --no-cache curl python3 \
 
 FROM ubuntu:18.04 AS iterim
 COPY --from=downloader /root/houdini_download/houdini.tar.gz /root/houdini.tar.gz
+
 RUN mkdir /root/houdini_download \
   && tar xf /root/houdini.tar.gz -C /root/houdini_download --strip-components=1 \
   && apt-get update \
@@ -42,8 +43,8 @@ RUN mkdir /root/houdini_download \
 FROM ubuntu:18.04
 
 # Add files.
-COPY --from=iterim /usr/lib/sesi/ /usr/lib/sesi \
-  /root/startHoudiniLicenseServer.sh /root/
+COPY --from=iterim /usr/lib/sesi/ /usr/lib/sesi
+COPY startHoudiniLicenseServer.sh /root/
 
 # Install.
 # build-essential software-properties-common git python3-pip python3-dev 
