@@ -27,7 +27,7 @@ RUN apk add --no-cache curl python3 \
   && cd /root/houdini_download \
   && HOUDINIDOWNLOADURL=$(python /root/downloadHoudini.py) \
   && echo "Downloading $HOUDINIDOWNLOADURL" \
-  && curl $HOUDINIDOWNLOADURL -o /root/houdini_download/houdini.tar.gz \
+  && curl -s $HOUDINIDOWNLOADURL -o /root/houdini_download/houdini.tar.gz \
   && echo "**** Done downloading Houdini ****"
 
 FROM ubuntu:18.04 AS iterim
