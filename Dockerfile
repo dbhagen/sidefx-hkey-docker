@@ -6,7 +6,7 @@
 
 FROM alpine:latest AS downloader
 
-ARG HOUDINI_VERSION=18.0
+ARG HOUDINI_VERSION=19.0
 ARG SIDEFX_API_CLIENT_ID=NEEDSSET
 ARG SIDEFX_API_CLIENT_SECRET_KEY=NEEDSSET
 
@@ -33,11 +33,13 @@ RUN apk add --no-cache curl python3 \
 FROM ubuntu:18.04 AS iterim
 COPY --from=downloader /root/houdini_download/houdini.tar.gz /root/houdini.tar.gz
 
+ARG EULA_DATE=2021-10-13
+
 RUN mkdir /root/houdini_download \
   && tar xf /root/houdini.tar.gz -C /root/houdini_download --strip-components=1 \
   && apt-get update \
   && apt-get install -y bc strace \
-  && /root/houdini_download/houdini.install --auto-install --accept-EULA --install-license --no-install-houdini --no-install-engine-maya --no-install-engine-unity --no-install-menus --no-install-hfs-symlink
+  && /root/houdini_download/houdini.install --auto-install --accept-EULA $EULA_DATE --install-license --no-install-houdini --no-install-engine-maya --no-install-engine-unity --no-install-menus --no-install-hfs-symlink
 
 # Pull base image.
 FROM ubuntu:18.04
@@ -47,7 +49,7 @@ COPY --from=iterim /usr/lib/sesi/ /usr/lib/sesi
 COPY startHoudiniLicenseServer.sh /root/
 
 # Install.
-# build-essential software-properties-common git python3-pip python3-dev 
+# build-essential software-properties-common git python3-pip python3-dev
 RUN chmod +x /root/startHoudiniLicenseServer.sh \
   && rm /usr/lib/sesi/licenses.disabled \
   && touch /usr/lib/sesi/licenses
